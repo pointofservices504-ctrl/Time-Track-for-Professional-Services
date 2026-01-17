@@ -69,16 +69,15 @@ const TimesheetApp: React.FC<TimesheetAppProps> = ({ data }) => {
     }));
   };
 
-  // Fix: Added explicit generic <number> to reduce to ensure return type is number, avoiding 'unknown' assignment errors
   const getRowTotal = (projectId: string): number => {
     const rows = gridData[projectId] || {};
     return Object.values(rows).reduce<number>((sum, val) => sum + (parseFloat(val) || 0), 0);
   };
 
-  // Fix: Added explicit generic <number> to reduce to ensure return type is number, avoiding 'unknown' assignment errors
   const getColumnTotal = (date: string): number => {
     return Object.keys(gridData).reduce<number>((sum, projId) => {
-      const val = gridData[projId]?.[date] || '0';
+      // Fix: Ensure we treat the grid value as a string explicitly to satisfy TypeScript
+      const val = (gridData[projId]?.[date] as string) || '0';
       return sum + (parseFloat(val) || 0);
     }, 0);
   };
@@ -86,7 +85,6 @@ const TimesheetApp: React.FC<TimesheetAppProps> = ({ data }) => {
   const handleProcessSubmission = (status: 'Draft' | 'Submitted') => {
     setIsSaving(true);
     
-    // Convert grid data back to TimesheetEntry objects
     const newEntries: TimesheetEntry[] = [];
     
     Object.entries(gridData).forEach(([projectId, dates]) => {
@@ -108,7 +106,6 @@ const TimesheetApp: React.FC<TimesheetAppProps> = ({ data }) => {
       });
     });
 
-    // Update global state: remove old entries for this user/week and add new ones
     setTimesheets(prev => {
       const otherEntries = prev.filter(t => 
         t.employeeId !== currentEmployeeId || 
@@ -249,8 +246,8 @@ const TimesheetApp: React.FC<TimesheetAppProps> = ({ data }) => {
               <tfoot className="bg-slate-900 text-white">
                 <tr className="font-bold">
                   <td className="px-6 py-6">
-                    <div className="text-xs text-slate-400 uppercase tracking-widest mb-1 font-bold">Total Capacity Utilization</div>
-                    <div className="text-sm">Weekly Firm Standard: 40.0h</div>
+                    <div className="text-xs text-slate-400 uppercase tracking-widest mb-1 font-bold">Capacity Utilization</div>
+                    <div className="text-sm">Standard: 40.0h</div>
                   </td>
                   {WEEK_DATES.map(wd => {
                     const colTotal = getColumnTotal(wd.date);
@@ -267,7 +264,7 @@ const TimesheetApp: React.FC<TimesheetAppProps> = ({ data }) => {
                     <div className="text-xl font-black italic">
                       {WEEK_DATES.reduce<number>((sum, wd) => sum + getColumnTotal(wd.date), 0).toFixed(1)}
                     </div>
-                    <div className="text-[9px] text-indigo-200 uppercase tracking-widest font-bold">Firm Total</div>
+                    <div className="text-[9px] text-indigo-200 uppercase tracking-widest font-bold">Week Total</div>
                   </td>
                 </tr>
               </tfoot>
@@ -279,88 +276,54 @@ const TimesheetApp: React.FC<TimesheetAppProps> = ({ data }) => {
           <div className="bg-indigo-900 text-white p-6 rounded-2xl shadow-xl border border-indigo-800 flex justify-between items-center">
              <div>
                <h3 className="text-lg font-bold">Approvals Pipeline</h3>
-               <p className="text-indigo-200 text-sm">Reviewing {pendingApprovals.length} pending time entries across firm projects.</p>
-             </div>
-             <div className="flex space-x-3">
-               <button className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-bold transition-colors">Export Ledger</button>
-               <button className="bg-emerald-500 hover:bg-emerald-600 px-4 py-2 rounded-lg text-sm font-bold transition-colors shadow-lg">Approve All</button>
+               <p className="text-indigo-200 text-sm">Reviewing {pendingApprovals.length} pending time entries.</p>
              </div>
           </div>
-
-          {pendingApprovals.length === 0 ? (
-            <div className="bg-white border-2 border-dashed border-slate-200 p-20 text-center rounded-2xl shadow-sm">
-              <div className="text-slate-200 mb-4">
-                <svg className="w-20 h-20 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              </div>
-              <h3 className="text-xl font-bold text-slate-800">Clear Desk Policy</h3>
-              <p className="text-slate-500 mt-2 max-w-sm mx-auto">No pending timesheet approvals at this time. All team members are compliant for the current period.</p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-               <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-                    <th className="px-6 py-4">Resource</th>
-                    <th className="px-6 py-4">Project / Task</th>
-                    <th className="px-6 py-4">Date</th>
-                    <th className="px-6 py-4 text-center">Hours</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {pendingApprovals.map(t => {
-                    const emp = employees.find(e => e.id === t.employeeId);
-                    const proj = projects.find(p => p.id === t.projectId);
-                    return (
-                      <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-5">
-                          <div className="flex items-center space-x-4">
-                            <div className="w-10 h-10 rounded-full border-2 border-slate-100 flex-shrink-0 bg-slate-100">
-                               <img src={`https://picsum.photos/seed/${t.employeeId}/40/40`} className="rounded-full" alt="" />
-                            </div>
-                            <div>
-                              <span className="font-bold text-slate-900 block">{emp?.name}</span>
-                              <span className="text-[10px] text-slate-400 font-bold uppercase">{emp?.role}</span>
-                            </div>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+             <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
+                  <th className="px-6 py-4">Resource</th>
+                  <th className="px-6 py-4">Project</th>
+                  <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4 text-center">Hours</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {pendingApprovals.map(t => {
+                  const emp = employees.find(e => e.id === t.employeeId);
+                  const proj = projects.find(p => p.id === t.projectId);
+                  return (
+                    <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-5">
+                        <div className="flex items-center space-x-4">
+                          <img src={`https://picsum.photos/seed/${t.employeeId}/40/40`} className="w-10 h-10 rounded-full border border-slate-100" alt="" />
+                          <div>
+                            <span className="font-bold text-slate-900 block">{emp?.name}</span>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase">{emp?.role}</span>
                           </div>
-                        </td>
-                        <td className="px-6 py-5">
-                          <div className="text-sm font-bold text-slate-800">{proj?.name}</div>
-                          <div className="text-[10px] font-mono font-bold text-indigo-500">{proj?.code}</div>
-                        </td>
-                        <td className="px-6 py-5 text-sm font-medium text-slate-600">
-                          {t.date}
-                        </td>
-                        <td className="px-6 py-5 text-center">
-                          <span className={`inline-block px-3 py-1 rounded-lg font-black text-sm ${t.hours > 8 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'}`}>
-                            {t.hours.toFixed(1)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-5 text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                             <button 
-                              onClick={() => handleReject(t.id)} 
-                              className="w-10 h-10 flex items-center justify-center rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm"
-                              title="Reject"
-                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-                             </button>
-                             <button 
-                              onClick={() => handleApprove(t.id)} 
-                              className="w-10 h-10 flex items-center justify-center rounded-xl bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
-                              title="Approve"
-                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                             </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 font-bold text-slate-800">{proj?.name}</td>
+                      <td className="px-6 py-5 text-sm text-slate-600">{t.date}</td>
+                      <td className="px-6 py-5 text-center">
+                        <span className="px-3 py-1 bg-slate-100 rounded-lg font-black text-sm">{t.hours.toFixed(1)}</span>
+                      </td>
+                      <td className="px-6 py-5 text-right space-x-2">
+                         <button onClick={() => handleReject(t.id)} className="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-all">
+                            <svg className="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                         </button>
+                         <button onClick={() => handleApprove(t.id)} className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all">
+                            <svg className="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                         </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
